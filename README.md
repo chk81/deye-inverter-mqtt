@@ -141,7 +141,7 @@ In order to do this run the following commands:
 #### Random read timeouts 
 
 For best performance, multiple Modbus registers are read at once, in so called register ranges. It's been reported [here](https://github.com/kbialek/deye-inverter-mqtt/issues/141) that Deye-SUN-5K-SG03LP1 reading times out when more than 16 registers is requested at once. To mitigate this problem you may try to set `DEYE_LOGGER_MAX_REG_RANGE_LENGTH` to lower number.
-
+test
 
 ## :gear: Configuration
 All configuration options are controlled through environment variables.
