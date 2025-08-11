@@ -72,9 +72,6 @@ class DeyeModbus:
     # --- Rest des Codes bleibt gleich ---
     # (Alle privaten Methoden unverändert)
 
-
-  
-
     def __build_modbus_read_holding_registers_request_frame(self, first_reg: int, last_reg: int) -> bytearray:
         reg_count = last_reg - first_reg + 1
         return bytearray.fromhex("0103{:04x}{:04x}".format(first_reg, reg_count))
