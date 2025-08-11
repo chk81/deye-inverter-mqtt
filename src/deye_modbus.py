@@ -73,39 +73,7 @@ class DeyeModbus:
     # (Alle privaten Methoden unverändert)
 
 
-    def write_registers_uint(self, reg_address: int, reg_values: list[int]) -> bool:
-        """Write multiple modbus holding registers, assuming the values are unsigned integers.
-
-
-        Args:
-            reg_address (int): The address of the first register to write
-            reg_values (list[int]): The values of the registers to write
-
-        Returns:
-            bool: True when the write operation was successful, False otherwise
-        """
-        return self.write_registers(reg_address, [v.to_bytes(2, "big", signed=False) for v in reg_values])
-
-    def write_registers(self, reg_address: int, reg_values: list[bytearray]) -> bool:
-        """Write multiple modbus holding registers.
-
-
-        Args:
-            reg_address (int): The address of the first register to write
-            reg_values (list[bytearray]): The values of the registers to write
-
-        Returns:
-            bool: True when the write operation was successful, False otherwise
-        """
-
-        modbus_frame = self.__build_modbus_write_holding_register_request_frame(reg_address, reg_values)
-        modbus_crc = bytearray.fromhex("{:04x}".format(libscrc.modbus(modbus_frame)))
-        modbus_crc.reverse()
-
-        modbus_resp_frame = self.connector.send_request(modbus_frame + modbus_crc)
-        if modbus_resp_frame is None:
-            return False
-        return self.__parse_modbus_write_holding_register_response(modbus_resp_frame, reg_address, reg_values)
+  
 
     def __build_modbus_read_holding_registers_request_frame(self, first_reg: int, last_reg: int) -> bytearray:
         reg_count = last_reg - first_reg + 1
