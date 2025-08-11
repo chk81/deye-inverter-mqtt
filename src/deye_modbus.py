@@ -16,64 +16,61 @@
 # under the License.
 
 import logging
-
+import time
 import libscrc
+from threading import Lock
 
 from deye_connector import DeyeConnector
 
 
 class DeyeModbus:
-    """Simplified Modbus over TCP implementation that works with Deye Solar inverter.
-    Inspired by https://github.com/jlopez77/DeyeInverter
-    """
+    """Simplified Modbus over TCP implementation that works with Deye Solar inverter."""
+
+    # Lock als Klassenvariable, damit alle Instanzen es teilen
+    _modbus_lock = Lock()
 
     def __init__(self, connector: DeyeConnector):
         self.__log = logging.getLogger(DeyeModbus.__name__)
         self.connector = connector
 
     def read_registers(self, first_reg: int, last_reg: int) -> dict[int, bytearray]:
-        """Reads multiple modbus holding registers
+        with DeyeModbus._modbus_lock:
+            self.__log.debug(f"Acquired lock for read_registers {first_reg}-{last_reg}")
+            modbus_frame = self.__build_modbus_read_holding_registers_request_frame(first_reg, last_reg)
+            modbus_crc = bytearray.fromhex("{:04x}".format(libscrc.modbus(modbus_frame)))
+            modbus_crc.reverse()
 
-        Args:
-            first_reg (int): The address of the first register to read
-            last_reg (int): The address of the last register to read
-
-        Returns:
-            dict[int, bytearray]: Map of register values, where the register address is the map key,
-            and register value is the map value
-        """
-        modbus_frame = self.__build_modbus_read_holding_registers_request_frame(first_reg, last_reg)
-        modbus_crc = bytearray.fromhex("{:04x}".format(libscrc.modbus(modbus_frame)))
-        modbus_crc.reverse()
-
-        modbus_resp_frame = self.connector.send_request(modbus_frame + modbus_crc)
-        if modbus_resp_frame is None:
-            return {}
-        return self.__parse_modbus_read_holding_registers_response(modbus_resp_frame, first_reg, last_reg)
+            modbus_resp_frame = self.connector.send_request(modbus_frame + modbus_crc)
+            time.sleep(0.2)  # kurze Pause, damit kein Überlapp passiert
+            if modbus_resp_frame is None:
+                return {}
+            return self.__parse_modbus_read_holding_registers_response(modbus_resp_frame, first_reg, last_reg)
 
     def write_register_uint(self, reg_address: int, reg_value: int) -> bool:
-        """Write single modbus holding register, assuming the value is an unsigned int
-
-        Args:
-            reg_address (int): The address of the register to write
-            reg_value (int): The value of the register to write
-
-        Returns:
-            bool: True when the write operation was successful, False otherwise
-        """
         return self.write_register(reg_address, reg_value.to_bytes(2, "big", signed=False))
 
     def write_register(self, reg_address: int, reg_value: bytearray) -> bool:
-        """Write single modbus holding register
-
-        Args:
-            reg_address (int): The address of the register to write
-            reg_value (bytearray): The value of the register to write
-
-        Returns:
-            bool: True when the write operation was successful, False otherwise
-        """
         return self.write_registers(reg_address, [reg_value])
+
+    def write_registers_uint(self, reg_address: int, reg_values: list[int]) -> bool:
+        return self.write_registers(reg_address, [v.to_bytes(2, "big", signed=False) for v in reg_values])
+
+    def write_registers(self, reg_address: int, reg_values: list[bytearray]) -> bool:
+        with DeyeModbus._modbus_lock:
+            self.__log.debug(f"Acquired lock for write_registers at {reg_address}")
+            modbus_frame = self.__build_modbus_write_holding_register_request_frame(reg_address, reg_values)
+            modbus_crc = bytearray.fromhex("{:04x}".format(libscrc.modbus(modbus_frame)))
+            modbus_crc.reverse()
+
+            modbus_resp_frame = self.connector.send_request(modbus_frame + modbus_crc)
+            time.sleep(0.2)  # kurze Pause nach dem Schreiben
+            if modbus_resp_frame is None:
+                return False
+            return self.__parse_modbus_write_holding_register_response(modbus_resp_frame, reg_address, reg_values)
+
+    # --- Rest des Codes bleibt gleich ---
+    # (Alle privaten Methoden unverändert)
+
 
     def write_registers_uint(self, reg_address: int, reg_values: list[int]) -> bool:
         """Write multiple modbus holding registers, assuming the values are unsigned integers.
