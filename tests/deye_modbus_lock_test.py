@@ -3,7 +3,8 @@ import threading
 import time
 from unittest.mock import MagicMock
 
-from your_module_path.deye_modbus import DeyeModbus  # Pfad anpassen
+from deye_modbus import DeyeModbus
+
 
 
 class DummyConnector:
